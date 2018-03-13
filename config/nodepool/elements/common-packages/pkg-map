@@ -1,0 +1,10 @@
+{
+    "distro": {
+        "fedora": {
+            "python2-markupsafe": "python-markupsafe"
+        },
+        "centos": {
+            "python2-markupsafe": "python2-markupsafe"
+        }
+    }
+}

@@ -1,0 +1,15 @@
+---
+- pipeline:
+    name: github-post
+    post-review: true
+    description: This pipeline runs jobs that operate after each change is merged on GitHub.
+    manager: independent
+    precedence: low
+    trigger:
+      github:
+        - event: ref-updated
+          ref: ^(refs/).*$
+    success:
+      sqlreporter:
+    failure:
+      sqlreporter:

@@ -1,0 +1,42 @@
+---
+- debug:
+    msg: "Skipping upload, there was no build."
+  when: buildset_artifacts_url is undefined
+
+- name: Exit
+  meta: end_play
+  when: buildset_artifacts_url is undefined
+
+- name: Dirty workaround for sftests.com resolution
+  shell:
+    cmd: |
+      echo "38.145.34.37 sftests.com" >> /etc/hosts
+  become: true
+
+- name: Prepare virtualenv
+  command: virtualenv -p python2 "{{ zuul.executor.work_root }}/.venv"
+
+- name: Install updated pip
+  shell:
+    cmd: |
+      . {{ zuul.executor.work_root }}/.venv/bin/activate
+      pip install --upgrade pip
+
+- name: Install dlrnapi_client
+  pip:
+    name: dlrnapi_client
+    virtualenv:   "{{ zuul.executor.work_root }}/.venv"
+
+- name: Publish for each built tag
+  include: publish.yaml
+  with_items:
+    - queens-uc
+    - pike
+    - ocata
+    - newton
+  loop_control:
+    loop_var: current_tag
+
+
+
+

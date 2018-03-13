@@ -1,0 +1,51 @@
+---
+resources:
+  groups:
+    puppet-aodh-core:
+      description: Core developers for project puppet-aodh
+      members:
+      - jpena@redhat.com
+      - admin@sftests.com
+    puppet-aodh-ptl:
+      description: Project team lead for project puppet-aodh
+      members:
+      - jpena@redhat.com
+      - admin@sftests.com
+  acls:
+    puppet-aodh-acl:
+      file: |
+        [access "refs/*"]
+          read = group puppet-aodh-core
+          owner = group puppet-aodh-ptl
+        [access "refs/heads/*"]
+            label-Code-Review = -2..+2 group puppet-aodh-core
+            label-Code-Review = -2..+2 group puppet-aodh-ptl
+            label-Verified = -2..+2 group puppet-aodh-ptl
+            label-Workflow = -1..+1 group puppet-aodh-core
+            label-Workflow = -1..+1 group puppet-aodh-ptl
+            label-Workflow = -1..+0 group Registered Users
+            submit = group puppet-aodh-ptl
+            rebase = group puppet-aodh-core
+            read = group Registered Users
+            read = group puppet-aodh-core
+            forgeAuthor = group puppet-aodh-core
+        [access "refs/meta/config"]
+            read = group Registered Users
+            read = group puppet-aodh-core
+            forgeCommitter = group puppet-aodh-core
+        [receive]
+            requireChangeId = true
+        [submit]
+            mergeContent = false
+            action = rebase if necessary
+      groups:
+      - puppet-aodh-ptl
+      - puppet-aodh-core
+  repos:
+    openstack/puppet-aodh-distgit:
+      acl: puppet-aodh-acl
+      description: Packaging of upstream puppet-aodh
+      default-branch: rpm-master
+      branches:
+        master: '0'
+        pike-rdo: ca26c6bb9f4651e14a5dc2dbb2861d4e5dff1b3d

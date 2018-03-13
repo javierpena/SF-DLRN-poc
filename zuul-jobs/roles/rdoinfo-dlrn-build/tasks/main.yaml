@@ -1,0 +1,10 @@
+---
+# FIXME(jpena): in an ideal world, we would include the prepare.yaml task
+# from the dlrn-build role, but this fails in Ansible 2.3.1
+- include: prepare.yaml
+  vars:
+    working_dir: '{{ ansible_user_dir }}/{{ zuul.project.src_dir }}/..'
+
+- include: decide-build.yaml
+  vars:
+    working_dir: '{{ ansible_user_dir }}/{{ zuul.project.src_dir }}/..'

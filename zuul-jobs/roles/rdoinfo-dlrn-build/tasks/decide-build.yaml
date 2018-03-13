@@ -1,0 +1,102 @@
+# FIXME(jpena): this should be done using the pip module, however there is
+# an issue with Ansible 2.3.1 that prevents this
+# See https://github.com/ansible/ansible-modules-core/issues/5458
+- name: Prepare virtualenv
+  command: virtualenv -p python2 "{{ working_dir }}/.venv"
+
+- name: Install updated pip and rdoinfo
+  shell:
+    cmd: |
+      . {{ working_dir }}/.venv/bin/activate
+      pip install --upgrade pip
+      cd {{ zuul.project.src_dir }}
+      pip install .
+      pip install ruamel.yaml
+      pip install rdopkg
+
+- name: Install DLRN in venv
+  shell:
+    cmd: |
+      . {{ working_dir }}/.venv/bin/activate
+      pip install .
+    chdir: "{{ working_dir }}/DLRN"
+
+- name: Build list of packages to build for queens-uc tag
+  shell:
+    cmd: |
+      . {{ working_dir }}/.venv/bin/activate
+      CURRENT_TAG="queens-uc"
+      PACKAGES_UPDATED=""
+      TAGS_DIFF=$(rdopkg info-tags-diff {{ zuul.project.src_dir }})
+
+      while read line; do
+          PKGNAME=$(awk '{print $1}' <<< $line)
+          if [[ -n $(echo "$line" | grep -w $CURRENT_TAG) ]]; then
+              PACKAGES_UPDATED="$PACKAGES_UPDATED $PKGNAME"
+          fi
+      done <<< "${TAGS_DIFF}"
+
+      for pkg in $PACKAGES_UPDATED; do
+        echo $pkg
+      done
+  register: packages_to_build_master
+
+- debug:
+    var: packages_to_build_master
+
+- include: build-pkg.yaml
+  vars:
+    tag: "queens-uc"
+  with_items:
+    - "{{ packages_to_build_master.stdout_lines }}"
+  loop_control:
+    loop_var: package
+
+- name: Build list of packages to build for pike tag
+  shell:
+    cmd: |
+      . {{ working_dir }}/.venv/bin/activate
+      CURRENT_TAG="pike"
+      PACKAGES_UPDATED=""
+      TAGS_DIFF=$(rdopkg info-tags-diff {{ zuul.project.src_dir }})
+
+      while read line; do
+          PKGNAME=$(awk '{print $1}' <<< $line)
+          if [[ -n $(echo "$line" | grep -w $CURRENT_TAG) ]]; then
+              PACKAGES_UPDATED="$PACKAGES_UPDATED $PKGNAME"
+          fi
+      done <<< "${TAGS_DIFF}"
+
+      for pkg in $PACKAGES_UPDATED; do
+        echo $pkg
+      done
+  register: packages_to_build_pike
+
+- debug:
+    var: packages_to_build_pike
+
+- include: build-pkg.yaml
+  vars:
+    tag: "pike"
+  with_items:
+    - "{{ packages_to_build_pike.stdout_lines }}"
+  loop_control:
+    loop_var: package
+
+- name: Copy log of successfully built packages to logs
+  shell:
+    cmd: |
+      cp {{ working_dir }}/DLRN/data/built_pkgs.txt {{ zuul.project.src_dir }}/buildset
+
+- name: Upload logs for all builds
+  synchronize:
+    src: '{{ zuul.project.src_dir }}/buildset'
+    dest: '{{ zuul.executor.log_root }}'
+    mode: pull
+    copy_links: true
+    verify_host: true
+    rsync_opts:
+      - --include=/buildset/**
+      - --include=*/
+      - --exclude=*
+      - --prune-empty-dirs

@@ -1,0 +1,24 @@
+---
+- project:
+    name: openstack/puppet-aodh-distgit
+    check:
+      jobs:
+        - dlrn-build
+    gate:
+      jobs:
+        - noop
+    post:
+      jobs:
+        - dlrn-build
+        - dlrn-publish:
+            dependencies:
+              - dlrn-build
+
+- project:
+    name: javierpena/puppet-aodh
+    github-post:
+      jobs:
+        - dlrn-build
+        - dlrn-publish:
+            dependencies:
+              - dlrn-build

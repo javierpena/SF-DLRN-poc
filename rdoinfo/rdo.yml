@@ -1,0 +1,204 @@
+releases:
+- name: queens
+  branch: rpm-master
+  repos:
+  - name: el7
+    buildsys: cbs/cloud7-openstack-queens-el7
+    buildsys-tags:
+    - cloud7-openstack-queens-candidate
+    - cloud7-openstack-queens-testing
+    distrepos:
+    - name: RDO Pike el7
+      url: http://mirror.centos.org/centos/7/cloud/x86_64/openstack-queens/
+    - name: CentOS 7 Base
+      url: http://mirror.centos.org/centos/7/os/x86_64/
+    - name: CentOS 7 Updates
+      url: http://mirror.centos.org/centos/7/updates/x86_64/
+    - name: CentOS 7 Extras
+      url: http://mirror.centos.org/centos/7/extras/x86_64/
+- name: pike
+  branch: pike-rdo
+  repos:
+  - name: el7
+    buildsys: cbs/cloud7-openstack-pike-el7
+    buildsys-tags:
+    - cloud7-openstack-pike-candidate
+    - cloud7-openstack-pike-testing
+    - cloud7-openstack-pike-release
+    distrepos:
+    - name: RDO Pike el7
+      url: http://mirror.centos.org/centos/7/cloud/x86_64/openstack-pike/
+    - name: CentOS 7 Base
+      url: http://mirror.centos.org/centos/7/os/x86_64/
+    - name: CentOS 7 Updates
+      url: http://mirror.centos.org/centos/7/updates/x86_64/
+    - name: CentOS 7 Extras
+      url: http://mirror.centos.org/centos/7/extras/x86_64/
+- name: ocata
+  branch: ocata-rdo
+  repos:
+  - name: el7
+    buildsys: cbs/cloud7-openstack-ocata-el7
+    buildsys-tags:
+    - cloud7-openstack-ocata-candidate
+    - cloud7-openstack-ocata-testing
+    - cloud7-openstack-ocata-release
+    distrepos:
+    - name: RDO Ocata el7
+      url: http://mirror.centos.org/centos/7/cloud/x86_64/openstack-ocata/
+    - name: CentOS 7 Base
+      url: http://mirror.centos.org/centos/7/os/x86_64/
+    - name: CentOS 7 Updates
+      url: http://mirror.centos.org/centos/7/updates/x86_64/
+    - name: CentOS 7 Extras
+      url: http://mirror.centos.org/centos/7/extras/x86_64/
+- name: newton
+  branch: newton-rdo
+  repos:
+  - name: el7
+    buildsys: cbs/cloud7-openstack-newton-el7
+    buildsys-tags:
+    - cloud7-openstack-newton-candidate
+    - cloud7-openstack-newton-testing
+    - cloud7-openstack-newton-release
+    distrepos:
+    - name: RDO Newton el7
+      url: http://mirror.centos.org/centos/7/cloud/x86_64/openstack-newton/
+    - name: CentOS 7 Base
+      url: http://mirror.centos.org/centos/7/os/x86_64/
+    - name: CentOS 7 Updates
+      url: http://mirror.centos.org/centos/7/updates/x86_64/
+    - name: CentOS 7 Extras
+      url: http://mirror.centos.org/centos/7/extras/x86_64/
+- name: common
+  # this is a stub allowing rdopkg to build rdo common packages in the right build target
+  branch: common-rdo
+  repos:
+  - name: el7
+    buildsys: cbs/cloud7-openstack-common-el7
+    buildsys-tags:
+    - cloud7-openstack-common-candidate
+    - cloud7-openstack-common-testing
+    - cloud7-openstack-common-release
+
+
+# default template for 'packages' infromation below
+package-default:
+  name: python-%(project)s
+  distgit: ssh://pkgs.fedoraproject.org/python-%(project)s.git
+  patches: http://review.rdoproject.org/r/p/openstack/%(project)s.git
+# master-distgit: http://review.rdoproject.org/r/p/openstack/%(project)s-distgit.git
+  master-distgit: https://github.com/rdo-packages/%(project)s-distgit.git
+  tags:
+    queens-uc:
+    queens:
+    pike:
+    ocata:
+    newton:
+# custom templates for 'packages' information below, reducing
+# redundant information in this file; inherits package-default
+package-configs:
+  xstatic:
+    maintainers:
+    - github@sheep.art.pl
+  # templates using rpmfactory's repositories
+  rpmfactory-core:
+    name: openstack-%(project)s
+    upstream: https://github.com/javierpena/%(project)s
+    distgit: https://sftests.com/r/openstack/%(project)s-distgit.git
+    patches: http://review.rdoproject.org/r/p/openstack/%(project)s.git
+    master-distgit: https://sftests.com/r/openstack/%(project)s-distgit.git
+    review-patches: ssh://review.rdoproject.org:29418/openstack/%(project)s.git
+    review-origin: ssh://review.rdoproject.org:29418/openstack/%(project)s-distgit.git
+    maintainers:
+    - jruzicka@redhat.com
+    - hguemar@fedoraproject.org
+  rpmfactory-client:
+    name: python-%(project)s
+    upstream: git://git.openstack.org/openstack/python-%(project)s
+    distgit: https://github.com/rdo-packages/%(project)s-distgit.git
+    patches: http://review.rdoproject.org/r/p/openstack/%(project)s.git
+    master-distgit: https://github.com/rdo-packages/%(project)s-distgit.git
+    review-patches: ssh://review.rdoproject.org:29418/openstack/%(project)s.git
+    review-origin: ssh://review.rdoproject.org:29418/openstack/%(project)s-distgit.git
+    maintainers:
+    - jruzicka@redhat.com
+    - hguemar@fedoraproject.org
+  rpmfactory-lib:
+    name: python-%(project)s
+    upstream: git://git.openstack.org/openstack/%(project)s
+    distgit: https://github.com/rdo-packages/%(project)s-distgit.git
+    patches: http://review.rdoproject.org/r/p/openstack/%(project)s.git
+    master-distgit: https://github.com/rdo-packages/%(project)s-distgit.git
+    review-patches: ssh://review.rdoproject.org:29418/openstack/%(project)s.git
+    review-origin: ssh://review.rdoproject.org:29418/openstack/%(project)s-distgit.git
+    maintainers:
+    - apevec@redhat.com
+    - hguemar@fedoraproject.org
+    - lbezdick@redhat.com
+  rpmfactory-puppet:
+    name: '%(project)s'
+    upstream: https://github.com/javierpena/%(project)s
+    distgit: https://sftests.com/r/openstack/%(project)s-distgit.git
+    patches: http://review.rdoproject.org/r/p/puppet/%(project)s.git
+    master-distgit: https://sftests.com/r/openstack/%(project)s-distgit.git
+    review-patches: ssh://review.rdoproject.org:29418/puppet/%(project)s.git
+    review-origin: ssh://review.rdoproject.org:29418/puppet/%(project)s-distgit.git
+    maintainers:
+    - lbezdick@redhat.com
+    - jguiditt@redhat.com
+    - gchamoul@redhat.com
+    # Only building puppet modules on newton and later
+    tags:
+      queens-uc:
+      queens:
+      pike:
+      ocata:
+      newton:
+
+packages:
+# OpenStack Puppet Modules
+- project: puppet-aodh
+  conf: rpmfactory-puppet
+  buildsys-tags:
+  # example to show how buildsys-tags will be used
+    cloud7-openstack-ocata-testing: puppet-aodh-10.4.1-1.el7
+    cloud7-openstack-ocata-release: puppet-aodh-10.4.1-1.el7
+    cloud7-openstack-newton-testing: puppet-aodh-9.6.0-1.el7
+    cloud7-openstack-newton-release: puppet-aodh-9.6.0-1.el7
+    cloud7-openstack-pike-testing: puppet-aodh-11.4.0-1.el7
+    cloud7-openstack-pike-release: puppet-aodh-11.4.0-1.el7
+  tags:
+    queens-uc:
+    queens:
+    pike:
+      source-branch: 11.1.0
+# deps
+- project: packstack
+  conf: rpmfactory-core
+  name: openstack-packstack
+  upstream: https://github.com/javierpena/%(project)s
+  maintainers:
+  - mmagr@redhat.com
+  - amoralej@redhat.com
+  - jpena@redhat.com
+  buildsys-tags:
+    cloud7-openstack-newton-testing: openstack-packstack-9.0.2-1.el7
+    cloud7-openstack-newton-release: openstack-packstack-9.0.2-1.el7
+    cloud7-openstack-ocata-testing: openstack-packstack-10.0.1-1.el7
+    cloud7-openstack-ocata-release: openstack-packstack-10.0.1-1.el7
+    cloud7-openstack-pike-testing: openstack-packstack-11.0.1-1.el7
+    cloud7-openstack-pike-release: openstack-packstack-11.0.1-1.el7
+  tags:
+    queens-uc:
+    queens:
+    pike:
+- project: mox3
+  tags:
+    queens-uc:
+      source-branch: 0.24.0
+    queens:
+    pike:
+      source-branch: 0.23.0
+  conf: rpmfactory-lib
+  upstream: git://git.openstack.org/openstack/mox3

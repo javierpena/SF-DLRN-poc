@@ -1,0 +1,16 @@
+---
+- tenant:
+    name: 'local'
+    source:
+      gerrit:
+        untrusted-projects:
+          - openstack/puppet-aodh-distgit
+      github:
+        untrusted-projects:
+          - javierpena/puppet-aodh:
+             exclude:
+               - job
+               - nodeset
+               - project
+               - project-template
+               - pipeline

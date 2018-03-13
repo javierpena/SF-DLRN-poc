@@ -1,0 +1,8 @@
+---
+- include: prepare.yaml
+  vars:
+    working_dir: '{{ ansible_user_dir }}/{{ zuul.project.src_dir }}/..'
+
+- include: build.yaml
+  vars:
+    working_dir: '{{ ansible_user_dir }}/{{ zuul.project.src_dir }}/..'

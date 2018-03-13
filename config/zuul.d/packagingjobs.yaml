@@ -1,0 +1,42 @@
+---
+- job:
+    name: packaging-base
+    parent: base
+    roles:
+      - zuul: zuul-jobs
+    attempts: 5
+    nodeset:
+      nodes:
+        - name: builder
+          label: dib-centos-7
+
+- job:
+    name: dlrn-build
+    parent: packaging-base
+    description: build a package using DLRN
+    run: playbooks/dlrn/dlrn-build.yaml
+
+- job:
+    name: dlrn-publish
+    parent: packaging-base
+    description: publish a built package using the DLRN API
+    secrets:
+      - dlrnapi_passwd
+    run: playbooks/dlrn/noop.yaml
+    post-run: playbooks/dlrn/dlrn-publish.yaml
+
+- job:
+    name: rdoinfo-dlrn-build
+    parent: packaging-base
+    description: build a package using DLRN as a response to a tag change in rdoinfo
+    run: playbooks/dlrn/rdoinfo-dlrn-build.yaml
+
+
+- job:
+    name: rdoinfo-dlrn-publish
+    parent: packaging-base
+    description: publish a built package using the DLRN API as a response to a tag change in rdoinfo
+    secrets:
+      - dlrnapi_passwd
+    run: playbooks/dlrn/noop.yaml
+    post-run: playbooks/dlrn/rdoinfo-dlrn-publish.yaml

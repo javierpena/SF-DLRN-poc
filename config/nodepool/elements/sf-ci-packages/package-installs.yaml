@@ -1,0 +1,15 @@
+ara:
+bashate:
+python-nose-htmloutput:
+python-nose-timer:
+# do not install rdo packages until update to pike is completed
+#python-openstackclient:
+#python-heatclient:
+# packages needed by pyYAML to use C bindings
+libyaml:
+yaml-cpp:
+# doc builder
+python-sphinx:
+graphviz:
+python-sphinx_rtd_theme:
+python2-markupsafe:

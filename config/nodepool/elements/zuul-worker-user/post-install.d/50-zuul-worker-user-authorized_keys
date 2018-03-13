@@ -1,0 +1,19 @@
+#!/bin/sh -ex
+
+groupadd -r zuul-worker
+useradd -r -g zuul-worker -G zuul-worker -d /home/zuul-worker -s /bin/bash -c "Zuul Worker user" zuul-worker
+if grep -q "^mock:" /etc/group; then
+    usermod -a -G mock zuul-worker
+fi
+
+mkdir -p -m 0700 /home/zuul-worker/.ssh
+
+if [ -f /tmp/in_target.d/nodepool_rsa.pub ]; then
+    cat /tmp/in_target.d/nodepool_rsa.pub >> /home/zuul-worker/.ssh/authorized_keys
+fi
+cat /tmp/in_target.d/zuul_rsa.pub >> /home/zuul-worker/.ssh/authorized_keys
+
+chmod 0600 /home/zuul-worker/.ssh/authorized_keys
+chown -R zuul-worker:zuul-worker /home/zuul-worker
+
+echo -e "Defaults    !requiretty\nzuul-worker ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/zuul-worker

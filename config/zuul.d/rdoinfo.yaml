@@ -1,0 +1,16 @@
+---
+- project:
+    name: rdoinfo
+    check:
+      jobs:
+        - noop
+    gate:
+      jobs:
+        - noop
+    post:
+      jobs:
+        - rdoinfo-dlrn-build
+        - rdoinfo-dlrn-publish:
+            dependencies:
+              - rdoinfo-dlrn-build
+

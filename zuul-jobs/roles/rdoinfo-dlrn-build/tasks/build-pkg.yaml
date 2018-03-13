@@ -1,0 +1,73 @@
+- name: Build for real
+  debug:
+    msg: "Build {{ package }} with tag {{ tag }}"
+
+- name: Set project.ini values according to current config
+  shell:
+    cmd: |
+      # Prepare config
+      target="centos"
+      if [[ "{{ tag }}" =~ -uc ]]; then
+          # Master build
+          baseurl="http://trunk.rdoproject.org/centos7/"
+          src="master"
+          distro="rpm-master"
+          tags="{{ tag }}"
+      else
+          # Stable build
+          baseurl="http://trunk.rdoproject.org/{{ tag }}/centos7/"
+          src="stable/{{ tag }}"
+          distro="{{ tag }}-rdo"
+          tags="{{ tag }}"
+      fi
+
+      # Update the configuration
+      sed -i "s%target=.*%target=${target}%" projects.ini
+      sed -i "s%source=.*%source=${src}%" projects.ini
+      sed -i "s%baseurl=.*%baseurl=${baseurl}%" projects.ini
+      sed -i "s%tags=.*%tags={{ tag }}%" projects.ini
+      sed -i "s%distro=.*%distro=${distro}%" projects.ini
+    chdir: "{{ working_dir }}/DLRN"
+
+- name: Build package
+  block:
+    - name: build
+      shell:
+        cmd: |
+          . {{ working_dir }}/.venv/bin/activate
+          dlrn --config-file projects.ini --package-name {{ package }} --use-public --local --info-repo /tmp/rdoinfo --verbose-mock
+        chdir: "{{ working_dir }}/DLRN"
+    
+    - name: Add package to built package list
+      shell:
+        cmd: |
+          echo "{{ package }} {{ tag }}" >> {{ working_dir }}/DLRN/data/built_pkgs.txt
+
+  always:
+    - name: Ensure log directory is created
+      file:
+        path: '{{ zuul.project.src_dir }}/buildset'
+        state: directory
+
+    - name: Ensure branch log directory is created
+      file:
+        path: '{{ zuul.project.src_dir }}/buildset/{{ tag }}'
+        state: directory
+
+    - name: Ensure package log directory is created
+      file:
+        path: '{{ zuul.project.src_dir }}/buildset/{{ tag }}/{{ package }}'
+        state: directory
+
+    - name: Copy logs
+      shell:
+        cmd: |
+          rsync -avL {{ working_dir }}/DLRN/data/repos {{ zuul.project.src_dir }}/buildset/{{ tag }}/{{ package }}
+          cp -p {{ working_dir }}/DLRN/commits.sqlite {{ zuul.project.src_dir }}/buildset/{{ tag }}/{{ package }}
+
+    - name: Cleanup before next execution
+      shell:
+        cmd: |
+          rm -rf {{ working_dir }}/DLRN/data/repos
+          rm -f {{ working_dir }}/DLRN/commits.sqlite
+          mock -r {{ working_dir }}/DLRN/data/dlrn-1.cfg --scrub=all

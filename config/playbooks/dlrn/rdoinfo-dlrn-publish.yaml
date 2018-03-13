@@ -1,0 +1,5 @@
+---
+- hosts: all
+  roles:
+    - role: rdoinfo-dlrn-publish
+      dlrnapi_creds: "{{ dlrnapi_passwd }}"

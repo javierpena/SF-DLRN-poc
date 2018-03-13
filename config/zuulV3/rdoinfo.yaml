@@ -1,0 +1,11 @@
+---
+- tenant:
+    name: 'local'
+    source:
+      gerrit:
+        untrusted-projects:
+          - rdoinfo:
+             exclude:
+               - project
+               - project-template
+               - pipeline

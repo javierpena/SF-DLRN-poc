@@ -1,0 +1,52 @@
+---
+resources:
+  groups:
+    packstack-core:
+      description: Core developers for project packstack
+      members:
+      - jpena@redhat.com
+      - admin@sftests.com
+    packstack-ptl:
+      description: Project team lead for project packstack
+      members:
+      - jpena@redhat.com
+      - admin@sftests.com
+  acls:
+    packstack-acl:
+      file: |
+        [access "refs/*"]
+          read = group packstack-core
+          owner = group packstack-ptl
+        [access "refs/heads/*"]
+            label-Code-Review = -2..+2 group packstack-core
+            label-Code-Review = -2..+2 group packstack-ptl
+            label-Verified = -2..+2 group packstack-ptl
+            label-Workflow = -1..+1 group packstack-core
+            label-Workflow = -1..+1 group packstack-ptl
+            label-Workflow = -1..+0 group Registered Users
+            submit = group packstack-ptl
+            rebase = group packstack-core
+            read = group Registered Users
+            read = group packstack-core
+            forgeAuthor = group packstack-core
+        [access "refs/meta/config"]
+            read = group Registered Users
+            read = group packstack-core
+            forgeCommitter = group packstack-core
+        [receive]
+            requireChangeId = true
+        [submit]
+            mergeContent = false
+            action = rebase if necessary
+      groups:
+      - packstack-ptl
+      - packstack-core
+  repos:
+    openstack/packstack-distgit:
+      acl: packstack-acl
+      description: Packaging of upstream packstack
+      default-branch: rpm-master
+      branches:
+        master: '0'
+        pike-rdo: bed646271e17f998c1f24d81bc0e2d3bede11cfd
+        ocata-rdo: bed646271e17f998c1f24d81bc0e2d3bede11cfd

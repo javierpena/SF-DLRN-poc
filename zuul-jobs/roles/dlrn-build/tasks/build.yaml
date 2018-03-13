@@ -1,0 +1,226 @@
+# FIXME(jpena): this should be done using the pip module, however there is
+# an issue with Ansible 2.3.1 that prevents this
+# See https://github.com/ansible/ansible-modules-core/issues/5458
+- name: Prepare virtualenv
+  command: virtualenv -p python2 "{{ working_dir }}/.venv"
+
+- name: Install updated pip and rdoinfo
+  shell:
+    cmd: |
+      . {{ working_dir }}/.venv/bin/activate
+      pip install --upgrade pip
+      cd /tmp/rdoinfo
+      pip install .
+      pip install ruamel.yaml
+      pip install rdopkg
+
+- name: Deploy source branch checker script
+  copy:
+    src: find-source-branch.py
+    dest: /tmp/find-source-branch.py
+
+- name: Deploy tag finder script
+  copy:
+    src: find-tags-for-source-branch.py
+    dest: /tmp/find-tags-for-source-branch.py
+
+
+- name: Check if this branch should be built
+  shell:
+    cmd: |
+      . {{ working_dir }}/.venv/bin/activate
+      PROJECT_DISTRO={{ zuul.project.name }}
+      # The rdoinfo project name is not prefixed by openstack/ or suffixed by -distgit
+      PROJECT_TO_BUILD=${PROJECT_DISTRO#*/}
+      PROJECT_TO_BUILD=$(sed "s/-distgit//" <<< "${PROJECT_TO_BUILD}")
+      PROJECT_TO_BUILD_MAPPED=$(rdopkg findpkg $PROJECT_TO_BUILD -l /tmp/rdoinfo | grep ^name | awk '{print $2}')
+      branch="{{ zuul.branch }}"
+
+      if [[ "{{ zuul.project.name }}" =~ -distgit ]]; then
+        # If its tags include "under-review", only build in non-post pipelines
+        rdopkg findpkg $PROJECT_TO_BUILD_MAPPED -l /tmp/rdoinfo | grep under-review
+        if [ $? -eq 0 ]; then
+            if [[ "{{ zuul.pipeline }}"  =~ post ]]; then
+                # Do not build under-review projects in the post pipeline
+                echo "Not rebuilding an under-review project from the post pipeline"
+                exit 1
+            fi
+        fi
+        # In any other case, lets build the package
+        exit 0
+      else
+        # This is a source git, a bit more complex
+        # 1- If it is still under review, not building at all
+        rdopkg findpkg $PROJECT_TO_BUILD_MAPPED -l /tmp/rdoinfo | grep under-review
+        if [ $? -eq 0 ]; then
+                echo "Not rebuilding an under-review project on a source commit"
+                exit 1
+        fi
+        # 2- We need to find it there is any tag that matches this source branch
+        tags_to_build=$(python /tmp/find-tags-for-source-branch.py $PROJECT_TO_BUILD_MAPPED $branch)
+        if [ "$tags_to_build" = "" ]; then
+            echo "No package tags match this source branch"
+            exit 1
+        fi
+        
+        exit 0
+      fi
+  register: should_build
+  ignore_errors: yes
+
+- name: Stop if we shouldn't build this
+  meta: end_play
+  when: should_build.rc != 0
+
+- name: Install requirements for DLRN
+  pip:
+    requirements: "{{ working_dir }}/DLRN/requirements.txt"
+    virtualenv:   "{{ working_dir }}/.venv"
+
+- name: Install DLRN in venv
+  shell:
+    cmd: |
+      . ../.venv/bin/activate
+      python setup.py install
+    chdir: "{{ working_dir }}/DLRN"
+
+
+# FIXME(jpena): this is only needed for Ansible < 2.4
+- name: Register if this is a distgit
+  shell:
+    cmd: |
+      echo {{ zuul.project.name }} | grep "\-distgit"
+  register: distgit
+  ignore_errors: yes
+
+- name: Copy distgit from source, if needed
+  shell:
+    cmd: |
+      . {{ working_dir }}/.venv/bin/activate
+      PROJECT_DISTRO={{ zuul.project.name }}
+      # The rdoinfo project name is not prefixed by openstack/ or suffixed by -distgit
+      PROJECT_TO_BUILD=${PROJECT_DISTRO#*/}
+      PROJECT_DIR=$PROJECT_TO_BUILD
+      PROJECT_TO_BUILD=$(sed "s/-distgit//" <<< "${PROJECT_TO_BUILD}")
+      PROJECT_TO_BUILD_MAPPED=$(rdopkg findpkg $PROJECT_TO_BUILD -l /tmp/rdoinfo | grep ^name | awk '{print $2}')
+      PROJECT_DISTRO_DIR=${PROJECT_TO_BUILD_MAPPED}_distro
+
+      mkdir -p {{ working_dir }}/DLRN/data
+      cp -a {{ zuul.project.src_dir }} {{ working_dir }}/DLRN/data
+      mv {{ working_dir }}/DLRN/data/$PROJECT_DIR {{ working_dir }}/DLRN/data/$PROJECT_DISTRO_DIR
+  when: distgit.stdout != ""
+#   when: project_name | match(".*-distgit$")
+
+- name: Copy source git, if needed
+  shell:
+    cmd: |
+      . {{ working_dir }}/.venv/bin/activate
+      PROJECT_DISTRO={{ zuul.project.name }}
+      # The rdoinfo project name is not prefixed by openstack/ or suffixed by -distgit
+      PROJECT_TO_BUILD=${PROJECT_DISTRO#*/}
+      PROJECT_DIR=$PROJECT_TO_BUILD
+      PROJECT_TO_BUILD=$(sed "s/-distgit//" <<< "${PROJECT_TO_BUILD}")
+      PROJECT_TO_BUILD_MAPPED=$(rdopkg findpkg $PROJECT_TO_BUILD -l /tmp/rdoinfo | grep ^name | awk '{print $2}')
+
+      mkdir -p {{ working_dir }}/DLRN/data
+      cp -a {{ zuul.project.src_dir }} {{ working_dir }}/DLRN/data
+      if [ "$PROJECT_DIR" != $PROJECT_TO_BUILD_MAPPED ]; then
+        mv {{ working_dir }}/DLRN/data/$PROJECT_DIR {{ working_dir }}/DLRN/data/$PROJECT_TO_BUILD_MAPPED
+      fi
+#  when: not (project_name | match(".*-distgit$"))
+  when: distgit.stdout == ""
+
+- name: Define source_branch for a source project
+  set_fact:
+    source_branch: "{{ zuul.branch }}"
+  when: distgit.stdout == ""
+
+- name: Find tags for a source project
+  shell:
+    cmd: |
+      . {{ working_dir }}/.venv/bin/activate
+      PROJECT_DISTRO={{ zuul.project.name }}
+      # The rdoinfo project name is not prefixed by openstack/ or suffixed by -distgit
+      PROJECT_TO_BUILD=${PROJECT_DISTRO#*/}
+      PROJECT_TO_BUILD=$(sed "s/-distgit//" <<< "${PROJECT_TO_BUILD}")
+      PROJECT_TO_BUILD_MAPPED=$(rdopkg findpkg $PROJECT_TO_BUILD -l /tmp/rdoinfo | grep ^name | awk '{print $2}')
+
+      python /tmp/find-tags-for-source-branch.py $PROJECT_TO_BUILD_MAPPED {{ zuul.branch }}
+  register: build_tags_source
+  when: distgit.stdout == ""
+
+- name: Define build tags (source)
+  set_fact:
+    tags: "{{ build_tags_source.stdout_lines }}"
+  when: distgit.stdout == ""
+
+- name: Find source_branch for a distgit project
+  shell:
+    cmd: |
+      . {{ working_dir }}/.venv/bin/activate
+      PROJECT_DISTRO={{ zuul.project.name }}
+      # The rdoinfo project name is not prefixed by openstack/ or suffixed by -distgit
+      PROJECT_TO_BUILD=${PROJECT_DISTRO#*/}
+      PROJECT_TO_BUILD=$(sed "s/-distgit//" <<< "${PROJECT_TO_BUILD}")
+      PROJECT_TO_BUILD_MAPPED=$(rdopkg findpkg $PROJECT_TO_BUILD -l /tmp/rdoinfo | grep ^name | awk '{print $2}')
+
+      if [[ "{{ zuul.branch }}" =~ -rdo ]] ; then
+        tag=$(sed "s/-rdo//" <<< "{{ zuul.branch }}")
+      elif [[ "{{ zuul.branch }}" =~ stable/ ]]; then
+        tag=$(sed "s#stable/##" <<< "{{ zuul.branch }}")
+      else
+        # This is master
+        tag={{ master_tag }}
+      fi
+
+      python /tmp/find-source-branch.py $PROJECT_TO_BUILD_MAPPED $tag
+  register: distgit_sbranch
+  when: distgit.stdout != ""
+
+
+- name: Define source_branch for a distgit project
+  set_fact:
+    source_branch: "{{ distgit_sbranch.stdout }}"
+  when: distgit.stdout != ""
+
+
+- name: Find tag for a distgit project
+  shell:
+    cmd: |
+      if [[ "{{ zuul.branch }}" =~ -rdo ]] ; then
+        tag=$(sed "s/-rdo//" <<< "{{ zuul.branch }}")
+      elif [[ "{{ zuul.branch }}" =~ stable/ ]]; then
+        tag=$(sed "s#stable/##" <<< "{{ zuul.branch }}")
+      else
+        # This is master
+        tag={{ master_tag }}
+      fi
+      echo $tag
+  register: build_tags_distgit
+  when: distgit.stdout != ""
+
+- name: Define build tags (distgit)
+  set_fact:
+    tags: "{{ build_tags_distgit.stdout_lines }}"
+  when: distgit.stdout != ""
+
+- include: build-pkg.yaml
+  vars:
+    project_name: "{{ zuul.project.name }}"
+  with_items:
+    - "{{ tags }}"
+  loop_control:
+    loop_var: current_tag
+
+- name: Upload logs for all builds
+  synchronize:
+    src: '{{ zuul.project.src_dir }}/buildset'
+    dest: '{{ zuul.executor.log_root }}'
+    mode: pull
+    copy_links: true
+    verify_host: true
+    rsync_opts:
+      - --include=/buildset/**
+      - --include=*/
+      - --exclude=*
+      - --prune-empty-dirs

@@ -1,0 +1,16 @@
+---
+- tenant:
+    name: 'local'
+    source:
+      gerrit:
+        untrusted-projects:
+          - openstack/packstack-distgit
+      github:
+        untrusted-projects:
+          - javierpena/packstack:
+             exclude:
+               - job
+               - nodeset
+               - project
+               - project-template
+               - pipeline

@@ -1,0 +1,66 @@
+- name: Build for real
+  debug:
+    msg: "Build {{ project_name }} with source branch {{ source_branch }} and tag {{ current_tag }}"
+
+- name: Package name from project_name
+  shell:
+    cmd: |
+      . {{ working_dir }}/.venv/bin/activate
+      PROJECT_DISTRO={{ project_name }}
+      # The rdoinfo project name is not prefixed by openstack/ or suffixed by -distgit
+      PROJECT_TO_BUILD=${PROJECT_DISTRO#*/}
+      PROJECT_TO_BUILD=$(sed "s/-distgit//" <<< "${PROJECT_TO_BUILD}")
+      rdopkg findpkg $PROJECT_TO_BUILD -l /tmp/rdoinfo | grep ^name | awk '{print $2}'
+  register: package_name
+
+- name: Set project.ini values according to current config
+  shell:
+    cmd: |
+      # Prepare config
+      target="centos"
+      if [[ "{{ current_tag }}" =~ -uc ]]; then
+          # Master build
+          baseurl="http://trunk.rdoproject.org/centos7/"
+          src="{{ source_branch }}"
+          distro="rpm-master"
+          tags="{{ current_tag }}"
+      else
+          # Stable build
+          baseurl="http://trunk.rdoproject.org/{{ current_tag }}/centos7/"
+          src="{{ source_branch }}"
+          distro="{{ current_tag }}-rdo"
+          tags="{{ current_tag }}"
+      fi
+
+      # Update the configuration
+      sed -i "s%target=.*%target=${target}%" projects.ini
+      sed -i "s%source=.*%source=${src}%" projects.ini
+      sed -i "s%baseurl=.*%baseurl=${baseurl}%" projects.ini
+      sed -i "s%tags=.*%tags={{ current_tag }}%" projects.ini
+      sed -i "s%distro=.*%distro=${distro}%" projects.ini
+    chdir: "{{ working_dir }}/DLRN"
+
+- name: Build package
+  block:
+    - name: build
+      shell:
+        cmd: |
+          . ../.venv/bin/activate
+          dlrn --config-file projects.ini --package-name {{ package_name.stdout }} --use-public --local --info-repo /tmp/rdoinfo --verbose-mock
+        chdir: "{{ working_dir }}/DLRN"
+  always:
+    - name: Ensure log directory is created
+      file:
+        path: '{{ zuul.project.src_dir }}/buildset'
+        state: directory
+
+    - name: Ensure branch log directory is created
+      file:
+        path: '{{ zuul.project.src_dir }}/buildset/{{ current_tag }}'
+        state: directory
+
+    - name: Copy logs
+      shell:
+        cmd: |
+          rsync -avL {{ working_dir }}/DLRN/data/repos {{ zuul.project.src_dir }}/buildset/{{ current_tag }}
+          cp -p {{ working_dir }}/DLRN/commits.sqlite {{ zuul.project.src_dir }}/buildset/{{ current_tag }}

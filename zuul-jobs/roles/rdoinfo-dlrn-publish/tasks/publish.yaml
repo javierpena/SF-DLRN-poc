@@ -1,0 +1,40 @@
+- name: Define package-name
+  set_fact:
+    pkgname: "{{ current_pkg.split(' ')[0] }}"
+
+- name: Define package tag
+  set_fact:
+    current_tag:  "{{ current_pkg.split(' ')[1] }}"
+
+- debug:
+    msg: "Going to import package {{ pkgname }} in builder {{ current_tag }}"
+
+- name: Check if buildset URL exists
+  uri:
+    url: "{{ buildset_artifacts_url }}/{{ current_tag }}/{{ pkgname }}"
+    validate_certs: no
+  register: webpage  
+  ignore_errors: true
+
+- name: Set DLRN API url based on current tag
+  shell:
+    cmd: |
+      if [[ "{{ current_tag }}" =~ -uc ]]; then
+          baseurl="https://dlrn-zuul.jpena.net/api-centos-master-uc"
+      else
+        # This is a stable release
+          baseurl="https://dlrn-zuul.jpena.net/api-centos-{{ current_tag }}"
+      fi
+      echo $baseurl
+  register: dlrnapi_url
+  when: webpage.status == 200
+
+- name: Import commit
+  shell:
+    cmd: |
+      . {{ zuul.executor.work_root }}/.venv/bin/activate
+      dlrnapi --url {{ dlrnapi_url.stdout }} --username ciuser commit-import --repo-url {{ buildset_artifacts_url }}/{{ current_tag }}/{{ pkgname }}/repos/current/
+  environment:
+      DLRNAPI_PASSWORD: "{{ dlrnapi_creds.password }}"
+  when: webpage.status == 200
+
